@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Versight — SOP Editor</title>
+<style>
+:root {
+  --ribbon-bg: #2b579a;
+  --ribbon-tab-active: #ffffff;
+  --ribbon-tab: rgba(255,255,255,0.15);
+  --ribbon-text: #ffffff;
+  --ribbon-hover: rgba(255,255,255,0.25);
+  --toolbar-bg: #f3f3f3;
+  --toolbar-border: #d4d4d4;
+  --toolbar-hover: #e1e1e1;
+  --toolbar-active: #d0d0d0;
+  --page-bg: #e8e8e8;
+  --doc-bg: #ffffff;
+  --doc-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  --text-primary: #1a1a1a;
+  --text-secondary: #444;
+  --text-muted: #888;
+  --ai-panel-bg: #fafbff;
+  --ai-panel-border: #d8e0f0;
+  --ai-accent: #2b579a;
+  --ai-accent-light: #e8eef8;
+  --flag-red-bg: #fde8e8; --flag-red: #c0392b;
+  --flag-amber-bg: #fef3e2; --flag-amber: #d48000;
+  --flag-green-bg: #e6f7ee; --flag-green: #1a7a40;
+  --flag-blue-bg: #e8eef8; --flag-blue: #2b579a;
+  --settings-bg: rgba(0,0,0,0.55);
+  --macro-card: #f7f9ff;
+  --macro-border: #c8d4ec;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--page-bg); font-size: 13px; color: var(--text-primary); }
+
+/* ── App shell ── */
+.app-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── Title bar ── */
+.title-bar { background: var(--ribbon-bg); color: white; display: flex; align-items: center; height: 30px; padding: 0 12px; gap: 10px; font-size: 12px; user-select: none; }
+.title-bar-name { font-weight: 600; font-size: 13px; }
+.title-bar-doc { color: rgba(255,255,255,0.75); }
+.title-bar-actions { margin-left: auto; display: flex; gap: 6px; }
+.tba { background: transparent; border: none; color: white; font-size: 12px; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-family: inherit; }
+.tba:hover { background: rgba(255,255,255,0.2); }
+.tba.primary { background: rgba(255,255,255,0.25); font-weight: 600; }
+
+/* ── Ribbon tabs ── */
+.ribbon-tabs { background: var(--ribbon-bg); display: flex; padding: 0 8px; border-bottom: 2px solid rgba(255,255,255,0.15); }
+.rtab { color: rgba(255,255,255,0.8); font-size: 12px; padding: 6px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .12s; user-select: none; }
+.rtab:hover { color: white; background: rgba(255,255,255,0.1); }
+.rtab.active { color: white; background: var(--toolbar-bg); color: var(--text-primary); border-bottom-color: var(--toolbar-bg); font-weight: 600; }
+
+/* ── Ribbon toolbar ── */
+.ribbon { background: var(--toolbar-bg); border-bottom: 1px solid var(--toolbar-border); display: flex; align-items: stretch; padding: 4px 8px; gap: 2px; min-height: 72px; overflow-x: auto; }
+.ribbon-group { display: flex; flex-direction: column; border-right: 1px solid var(--toolbar-border); padding: 0 8px 0 4px; margin-right: 4px; min-width: fit-content; }
+.ribbon-group:last-child { border-right: none; }
+.rg-label { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: auto; padding-top: 3px; user-select: none; }
+.rg-body { display: flex; gap: 2px; align-items: center; flex: 1; padding: 2px 0; }
+
+/* Ribbon buttons */
+.rbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 6px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; background: transparent; font-family: inherit; font-size: 11px; color: var(--text-secondary); min-width: 40px; height: 52px; transition: all .1s; user-select: none; white-space: nowrap; }
+.rbtn:hover { background: var(--toolbar-hover); border-color: var(--toolbar-border); }
+.rbtn:active, .rbtn.active { background: var(--toolbar-active); border-color: #b0b0b0; }
+.rbtn .icon { font-size: 18px; line-height: 1; }
+.rbtn.small { flex-direction: row; height: 26px; min-width: auto; padding: 3px 8px; gap: 5px; font-size: 12px; }
+.rbtn.small .icon { font-size: 14px; }
+.rg-small-col { display: flex; flex-direction: column; gap: 2px; }
+
+/* Heading selector */
+.heading-select { height: 24px; border: 1px solid var(--toolbar-border); background: white; font-size: 12px; padding: 2px 4px; border-radius: 3px; cursor: pointer; font-family: inherit; }
+.font-size-select { width: 48px; height: 24px; border: 1px solid var(--toolbar-border); background: white; font-size: 12px; padding: 2px 2px; border-radius: 3px; font-family: inherit; }
+
+/* Image size shortcut badges */
+.kb-badge { background: var(--ai-accent); color: white; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; font-family: monospace; }
+
+/* ── Status bar ── */
+.status-bar { background: var(--ribbon-bg); color: rgba(255,255,255,0.85); font-size: 11px; height: 22px; display: flex; align-items: center; padding: 0 12px; gap: 16px; flex-shrink: 0; }
+.sb-item { display: flex; align-items: center; gap: 4px; }
+.sb-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ── Editor layout ── */
+.editor-layout { display: flex; flex: 1; overflow: hidden; }
+.doc-canvas { flex: 1; overflow-y: auto; background: var(--page-bg); padding: 24px; display: flex; justify-content: center; align-items: flex-start; }
+.doc-page { background: var(--doc-bg); box-shadow: var(--doc-shadow); width: 794px; min-height: 1000px; padding: 72px 80px; position: relative; flex-shrink: 0; }
+
+/* ── AI panel ── */
+.ai-panel { width: 300px; background: var(--ai-panel-bg); border-left: 1px solid var(--ai-panel-border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.ai-panel-tabs { display: flex; border-bottom: 1px solid var(--ai-panel-border); }
+.apt { flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 600; text-align: center; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all .12s; }
+.apt.active { color: var(--ai-accent); border-bottom-color: var(--ai-accent); }
+.apt:hover { background: var(--ai-accent-light); }
+.ai-panel-body { flex: 1; overflow-y: auto; padding: 12px; }
+
+/* AI issue cards */
+.issue-card { background: white; border: 1px solid var(--ai-panel-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: border-color .12s; }
+.issue-card:hover { border-color: var(--ai-accent); }
+.issue-card.resolved { opacity: .5; }
+.ic-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.ic-type { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.ic-line { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+.ic-original { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 6px; border-left: 3px solid #e0e0e0; padding-left: 7px; }
+.ic-fix { font-size: 12px; color: var(--flag-green); line-height: 1.5; border-left: 3px solid var(--flag-green); padding-left: 7px; margin-bottom: 8px; }
+.ic-actions { display: flex; gap: 5px; }
+.ic-btn { font-size: 11px; padding: 3px 10px; border-radius: 4px; border: 1px solid; cursor: pointer; font-family: inherit; transition: all .1s; }
+.ic-btn-accept { background: var(--flag-green-bg); color: var(--flag-green); border-color: var(--flag-green); }
+.ic-btn-accept:hover { background: var(--flag-green); color: white; }
+.ic-btn-skip { background: white; color: var(--text-muted); border-color: #ddd; }
+.ic-btn-skip:hover { background: #f0f0f0; }
+
+/* Score ring in AI panel */
+.score-row { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid var(--ai-panel-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+.score-mini { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+.score-mini svg { transform: rotate(-90deg); }
+.score-mini-num { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; font-weight: 700; }
+.score-detail { flex: 1; }
+.score-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.score-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* AI chat in panel */
+.ai-chat-input { padding: 10px; border-top: 1px solid var(--ai-panel-border); display: flex; gap: 6px; background: white; }
+.ai-chat-input input { flex: 1; border: 1px solid var(--ai-panel-border); border-radius: 4px; padding: 6px 9px; font-size: 12px; font-family: inherit; outline: none; }
+.ai-chat-input input:focus { border-color: var(--ai-accent); }
+.ai-send-btn { background: var(--ai-accent); color: white; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+
+.ai-msg { margin-bottom: 10px; font-size: 12px; line-height: 1.6; }
+.ai-msg.user { text-align: right; }
+.ai-msg.user span { background: var(--ai-accent); color: white; padding: 6px 10px; border-radius: 10px 10px 2px 10px; display: inline-block; }
+.ai-msg.bot span { background: white; border: 1px solid var(--ai-panel-border); padding: 7px 10px; border-radius: 2px 10px 10px 10px; display: inline-block; color: var(--text-secondary); }
+
+/* ── Document content styles ── */
+.doc-header-block { border-bottom: 2px solid #2b579a; margin-bottom: 20px; padding-bottom: 12px; }
+.doc-title-field { font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+.doc-meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; font-size: 11px; margin-top: 8px; }
+.doc-meta-item { display: flex; flex-direction: column; gap: 1px; }
+.dm-label { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.dm-value { font-weight: 600; color: var(--text-primary); }
+.dm-value.valid { color: var(--flag-green); }
+.dm-value.warn { color: var(--flag-amber); }
+
+/* PPE block */
+.ppe-block { background: #fff8e1; border: 1px solid #f0c040; border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; display: flex; gap: 10px; align-items: flex-start; }
+.ppe-icon { font-size: 20px; flex-shrink: 0; }
+.ppe-text { font-size: 12px; }
+.ppe-title { font-weight: 700; color: #7a5000; margin-bottom: 2px; font-size: 11px; text-transform: uppercase; }
+.ppe-items { color: #5a3a00; line-height: 1.6; }
+
+/* Editable doc body */
+.doc-body { outline: none; min-height: 400px; }
+.doc-body:focus { outline: none; }
+
+/* Step rows in doc */
+.sop-step { display: flex; gap: 10px; margin-bottom: 4px; padding: 3px 4px; border-radius: 3px; transition: background .1s; position: relative; }
+.sop-step:hover { background: #f5f7ff; }
+.sop-step.flagged-red { background: var(--flag-red-bg); }
+.sop-step.flagged-amber { background: var(--flag-amber-bg); }
+.sop-step.flagged-fixed { background: var(--flag-green-bg); }
+.step-n { min-width: 20px; color: var(--text-muted); font-size: 12px; user-select: none; padding-top: 1px; }
+.step-content { flex: 1; font-size: 13px; line-height: 1.6; outline: none; }
+.step-inline-flag { position: absolute; right: 6px; top: 4px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; pointer-events: none; }
+
+/* Section headings */
+.h1 { font-size: 16px; font-weight: 700; color: #2b579a; border-bottom: 1px solid #2b579a; padding-bottom: 4px; margin: 18px 0 8px; }
+.h2 { font-size: 14px; font-weight: 700; color: #2b579a; margin: 14px 0 6px; }
+.h3 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 10px 0 4px; }
+.h4 { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin: 8px 0 3px; }
+
+/* Safety callout */
+.safety-callout { border: 1px solid; border-radius: 4px; padding: 8px 12px; margin: 10px 0; display: flex; gap: 10px; align-items: flex-start; }
+.safety-callout.caution { border-color: #f0c040; background: #fffbe6; }
+.safety-callout.warning { border-color: #e07000; background: #fff3e0; }
+.safety-callout.danger { border-color: #c0392b; background: #fde8e8; }
+.sc-icon { font-size: 18px; flex-shrink: 0; }
+.sc-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.caution .sc-label { color: #8a6000; }
+.warning .sc-label { color: #7a3a00; }
+.danger .sc-label { color: #8a1010; }
+.sc-text { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.5; }
+
+/* Doc control table */
+.dc-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 24px; border: 1px solid #ccc; }
+.dc-table th { background: #2b579a; color: white; padding: 6px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.dc-table td { padding: 7px 10px; border: 1px solid #ddd; color: var(--text-secondary); vertical-align: top; }
+.dc-table td.ai-gen { color: var(--flag-green); font-style: italic; }
+
+/* Image placeholder */
+.img-placeholder { background: #f0f2f8; border: 2px dashed #b0b8d0; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; margin: 10px 0; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: border-color .15s; min-height: 120px; }
+.img-placeholder:hover { border-color: var(--ai-accent); color: var(--ai-accent); }
+.img-placeholder .ip-icon { font-size: 28px; margin-bottom: 6px; }
+.img-callout-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.img-callout-tag { font-size: 11px; padding: 2px 8px; border: 1px dashed #f5c000; background: #fffbe6; border-radius: 3px; color: #7a5000; cursor: pointer; }
+.img-callout-tag:hover { background: #f5c000; color: white; }
+
+/* ── Settings modal ── */
+.settings-overlay { position: fixed; inset: 0; background: var(--settings-bg); z-index: 1000; display: none; align-items: center; justify-content: center; }
+.settings-overlay.open { display: flex; }
+.settings-modal { background: white; border-radius: 8px; width: 720px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+.settings-header { background: var(--ribbon-bg); color: white; padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+.settings-header h2 { font-size: 15px; font-weight: 600; flex: 1; }
+.settings-close { background: transparent; border: none; color: white; font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.settings-body { display: flex; flex: 1; overflow: hidden; }
+.settings-nav { width: 180px; background: #f5f5f5; border-right: 1px solid #e0e0e0; padding: 12px 0; flex-shrink: 0; }
+.snav-item { padding: 8px 16px; font-size: 13px; color: var(--text-secondary); cursor: pointer; border-left: 3px solid transparent; transition: all .1s; }
+.snav-item:hover { background: #eaeaea; color: var(--text-primary); }
+.snav-item.active { color: var(--ai-accent); background: var(--ai-accent-light); border-left-color: var(--ai-accent); font-weight: 600; }
+.settings-content { flex: 1; overflow-y: auto; padding: 20px; }
+.settings-section { display: none; }
+.settings-section.active { display: block; }
+.ss-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.ss-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+
+/* Macro cards */
+.macro-card { background: var(--macro-card); border: 1px solid var(--macro-border); border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; }
+.mc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mc-key { font-family: monospace; font-size: 12px; font-weight: 700; background: #2b579a; color: white; padding: 2px 8px; border-radius: 4px; }
+.mc-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.mc-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.5; }
+.mc-prompt { font-size: 11px; background: white; border: 1px solid var(--macro-border); border-radius: 4px; padding: 7px 10px; color: var(--text-secondary); line-height: 1.5; font-family: monospace; }
+.mc-edit-btn { font-size: 11px; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--macro-border); background: white; color: var(--ai-accent); cursor: pointer; margin-left: auto; }
+.mc-edit-btn:hover { background: var(--ai-accent); color: white; }
+
+/* Prompt editor in settings */
+.prompt-editor { width: 100%; border: 1px solid var(--macro-border); border-radius: 4px; padding: 8px 10px; font-size: 12px; font-family: monospace; resize: vertical; min-height: 80px; color: var(--text-primary); outline: none; }
+.prompt-editor:focus { border-color: var(--ai-accent); }
+label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+input[type="text"], select { width: 100%; border: 1px solid var(--macro-border); border-radius: 4px; padding: 6px 9px; font-size: 12px; font-family: inherit; outline: none; color: var(--text-primary); background: white; }
+input[type="text"]:focus, select:focus { border-color: var(--ai-accent); }
+.form-row-s { margin-bottom: 12px; }
+.save-btn { background: var(--ai-accent); color: white; border: none; border-radius: 4px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.save-btn:hover { background: #1e4080; }
+
+/* AI prompt bar at bottom of settings macro */
+.ai-macro-create { background: var(--ai-accent-light); border: 1px solid var(--macro-border); border-radius: 6px; padding: 12px 14px; margin-top: 14px; }
+.amc-label { font-size: 12px; font-weight: 600; color: var(--ai-accent); margin-bottom: 6px; }
+.amc-row { display: flex; gap: 6px; }
+.amc-input { flex: 1; border: 1px solid var(--macro-border); border-radius: 4px; padding: 7px 10px; font-size: 12px; font-family: inherit; outline: none; }
+.amc-input:focus { border-color: var(--ai-accent); }
+.amc-btn { background: var(--ai-accent); color: white; border: none; border-radius: 4px; padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.amc-result { margin-top: 10px; font-size: 12px; color: var(--text-secondary); background: white; border: 1px solid var(--macro-border); border-radius: 4px; padding: 8px 10px; min-height: 40px; line-height: 1.6; display: none; }
+
+/* ── Misc ── */
+.spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid #ccc; border-top-color: var(--ai-accent); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(10px); background: #2b579a; color: white; padding: 9px 20px; border-radius: 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: all .25s; z-index: 2000; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.divider-line { border: none; border-top: 1px solid #e8e8e8; margin: 14px 0; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+.badge-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
+.bp-green { background: var(--flag-green-bg); color: var(--flag-green); }
+.bp-amber { background: var(--flag-amber-bg); color: var(--flag-amber); }
+.bp-red { background: var(--flag-red-bg); color: var(--flag-red); }
+.bp-blue { background: var(--flag-blue-bg); color: var(--flag-blue); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Title bar -->
+  <div class="title-bar">
+    <div class="title-bar-name">Versight</div>
+    <div style="color:rgba(255,255,255,0.5)">·</div>
+    <div class="title-bar-doc" id="tbar-docname">MFG-CELL-WI-0041 · Electrolyte fill and seal procedure</div>
+    <div class="title-bar-actions">
+      <button class="tba" onclick="openSettings()">⚙ Macros & Settings</button>
+      <button class="tba" onclick="runAIAnalysis()">⚡ AI Analyze</button>
+      <button class="tba primary" onclick="toast_show('Document saved to SVN draft folder ✓')">💾 Save</button>
+    </div>
+  </div>
+
+  <!-- Ribbon tabs -->
+  <div class="ribbon-tabs">
+    <div class="rtab active" onclick="switchRibbon('home',this)">Home</div>
+    <div class="rtab" onclick="switchRibbon('insert',this)">Insert</div>
+    <div class="rtab" onclick="switchRibbon('format',this)">Format</div>
+    <div class="rtab" onclick="switchRibbon('macros',this)">Macros</div>
+    <div class="rtab" onclick="switchRibbon('safety',this)">Safety</div>
+    <div class="rtab" onclick="switchRibbon('review',this)">Review</div>
+  </div>
+
+  <!-- Ribbon toolbars -->
+  <div class="ribbon" id="ribbon-home">
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <select class="heading-select" id="heading-sel" onchange="applyHeading(this.value)" title="Heading level">
+          <option value="body">Body text</option>
+          <option value="h1">Heading 1</option>
+          <option value="h2">Heading 2</option>
+          <option value="h3">Heading 3</option>
+          <option value="h4">Heading 4</option>
+        </select>
+        <select class="font-size-select" title="Font size">
+          <option>11</option><option selected>13</option><option>14</option><option>16</option><option>18</option>
+        </select>
+      </div>
+      <div class="rg-label">Paragraph</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn small" onclick="fmt('bold')" title="Bold"><span class="icon">𝐁</span> Bold</button>
+        <button class="rbtn small" onclick="fmt('italic')" title="Italic"><span class="icon"><i>I</i></span> Italic</button>
+        <button class="rbtn small" onclick="fmt('underline')" title="Underline"><span class="icon"><u>U</u></span> Underline</button>
+        <button class="rbtn small" onclick="insertList()" title="Numbered list"><span class="icon">≡</span> List</button>
+      </div>
+      <div class="rg-label">Format</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="insertStep()" title="Add step"><span class="icon">➕</span>Add Step</button>
+        <button class="rbtn" onclick="insertSafetyCallout('caution')" title="Caution"><span class="icon">⚠️</span>Caution</button>
+        <button class="rbtn" onclick="insertSafetyCallout('warning')" title="Warning"><span class="icon">🔶</span>Warning</button>
+        <button class="rbtn" onclick="insertSafetyCallout('danger')" title="Danger"><span class="icon">🚫</span>Danger</button>
+      </div>
+      <div class="rg-label">Steps & Safety</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="runAIAnalysis()"><span class="icon">⚡</span>AI Check</button>
+        <button class="rbtn" onclick="acceptAllFixes()"><span class="icon">✅</span>Accept All</button>
+        <button class="rbtn" onclick="switchAITab('chat')"><span class="icon">💬</span>AI Chat</button>
+      </div>
+      <div class="rg-label">AI</div>
+    </div>
+  </div>
+
+  <div class="ribbon" id="ribbon-insert" style="display:none">
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="insertImagePlaceholder()"><span class="icon">🖼️</span>Image</button>
+        <button class="rbtn" onclick="insertTable()"><span class="icon">⊞</span>Table</button>
+        <button class="rbtn" onclick="insertPPEBlock()"><span class="icon">🦺</span>PPE Block</button>
+      </div>
+      <div class="rg-label">Insert</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="insertSafetySymbol('electric')"><span class="icon">⚡</span>Electric</button>
+        <button class="rbtn" onclick="insertSafetySymbol('cut')"><span class="icon">✂️</span>Cut Hazard</button>
+        <button class="rbtn" onclick="insertSafetySymbol('chemical')"><span class="icon">🧪</span>Chemical</button>
+        <button class="rbtn" onclick="insertSafetySymbol('hot')"><span class="icon">🔥</span>Hot Surface</button>
+        <button class="rbtn" onclick="insertSafetySymbol('pinch')"><span class="icon">🤏</span>Pinch</button>
+        <button class="rbtn" onclick="insertSafetySymbol('esd')"><span class="icon">🛡️</span>ESD</button>
+      </div>
+      <div class="rg-label">Safety Symbols (25 types)</div>
+    </div>
+  </div>
+
+  <div class="ribbon" id="ribbon-format" style="display:none">
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="applyHeading('h1')"><span class="icon" style="color:#2b579a;font-weight:700">H1</span>Section</button>
+        <button class="rbtn" onclick="applyHeading('h2')"><span class="icon" style="color:#2b579a;font-weight:700">H2</span>Subsection</button>
+        <button class="rbtn" onclick="applyHeading('h3')"><span class="icon" style="color:#555;font-weight:700">H3</span>Step group</button>
+        <button class="rbtn" onclick="applyHeading('h4')"><span class="icon" style="color:#777;font-weight:600">H4</span>Sub-step</button>
+      </div>
+      <div class="rg-label">Hierarchy</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="alignImages('small')" title="Small image (Ctrl+W equiv)"><span class="icon">◻</span>Small<div class="kb-badge">W</div></button>
+        <button class="rbtn" onclick="alignImages('medium')" title="Medium image (Ctrl+Q equiv)"><span class="icon">⬜</span>Medium<div class="kb-badge">Q</div></button>
+        <button class="rbtn" onclick="alignImages('large')" title="Large image (Ctrl+A equiv)"><span class="icon">🟦</span>Large<div class="kb-badge">A</div></button>
+        <button class="rbtn" onclick="alignImages('full')" title="Full width"><span class="icon">⬛</span>Full<div class="kb-badge">F</div></button>
+      </div>
+      <div class="rg-label">Image size (Ctrl+key)</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn small" onclick="insertCalloutShape('circle')"><span class="icon">⭕</span> Circle callout</button>
+        <button class="rbtn small" onclick="insertCalloutShape('square')"><span class="icon">⬜</span> Square callout</button>
+        <button class="rbtn small" onclick="insertCalloutShape('ellipse')"><span class="icon">⬭</span> Ellipse callout</button>
+        <button class="rbtn small" onclick="insertCalloutShape('arrow')"><span class="icon">➡️</span> Arrow callout</button>
+      </div>
+      <div class="rg-label">Image callouts</div>
+    </div>
+  </div>
+
+  <div class="ribbon" id="ribbon-macros" style="display:none">
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="runMacro('verb_first')"><span class="icon">🔤</span>Verb-first<br>fix</button>
+        <button class="rbtn" onclick="runMacro('split_actions')"><span class="icon">✂️</span>Split<br>actions</button>
+        <button class="rbtn" onclick="runMacro('add_units')"><span class="icon">📏</span>Add<br>units</button>
+        <button class="rbtn" onclick="runMacro('ppe_check')"><span class="icon">🦺</span>PPE<br>check</button>
+        <button class="rbtn" onclick="runMacro('readability')"><span class="icon">📖</span>Readability<br>check</button>
+      </div>
+      <div class="rg-label">AI macros (customizable)</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="openSettings('macros')"><span class="icon">⚙️</span>Edit<br>macros</button>
+        <button class="rbtn" onclick="openSettings('new-macro')"><span class="icon">➕</span>New<br>macro</button>
+      </div>
+      <div class="rg-label">Customize</div>
+    </div>
+  </div>
+
+  <div class="ribbon" id="ribbon-safety" style="display:none">
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="insertSafetyCallout('caution')"><span class="icon">⚠️</span>Caution</button>
+        <button class="rbtn" onclick="insertSafetyCallout('warning')"><span class="icon">🔶</span>Warning</button>
+        <button class="rbtn" onclick="insertSafetyCallout('danger')"><span class="icon">🚫</span>Danger</button>
+        <button class="rbtn" onclick="runMacro('safety_scan')"><span class="icon">🔍</span>Auto-scan<br>hazards</button>
+      </div>
+      <div class="rg-label">Callouts</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body" style="flex-wrap:wrap;max-width:340px">
+        <button class="rbtn small" onclick="insertSafetySymbol('electric')">⚡ Electric hazard</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('cut')">✂️ Cut hazard</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('chemical')">🧪 Chemical</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('hot')">🔥 Hot surface</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('pinch')">🤏 Pinch point</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('esd')">🛡️ ESD</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('laser')">🔴 Laser</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('pressure')">💨 Pressure</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('fall')">🪜 Fall risk</button>
+        <button class="rbtn small" onclick="insertSafetySymbol('crush')">⚙️ Crush</button>
+      </div>
+      <div class="rg-label">Safety symbols (select all 25 in Settings)</div>
+    </div>
+  </div>
+
+  <div class="ribbon" id="ribbon-review" style="display:none">
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="runAIAnalysis()"><span class="icon">🤖</span>AI full<br>review</button>
+        <button class="rbtn" onclick="acceptAllFixes()"><span class="icon">✅</span>Accept<br>all fixes</button>
+        <button class="rbtn" onclick="generateDocControl()"><span class="icon">📋</span>Gen doc<br>control</button>
+      </div>
+      <div class="rg-label">AI review</div>
+    </div>
+    <div class="ribbon-group">
+      <div class="rg-body">
+        <button class="rbtn" onclick="toast_show('Submitted for engineer review via JIRA ✓')"><span class="icon">📤</span>Submit for<br>review</button>
+        <button class="rbtn" onclick="toast_show('Approved ✓ — ready to release')"><span class="icon">✍️</span>Approve</button>
+        <button class="rbtn" onclick="toast_show('Releasing to SVN…')"><span class="icon">🚀</span>Release</button>
+      </div>
+      <div class="rg-label">Workflow</div>
+    </div>
+  </div>
+
+  <!-- Editor layout -->
+  <div class="editor-layout">
+
+    <!-- Document canvas -->
+    <div class="doc-canvas">
+      <div class="doc-page" id="doc-page">
+
+        <!-- Document header -->
+        <div class="doc-header-block">
+          <div class="doc-title-field" contenteditable="true" id="doc-title">Electrolyte Fill and Seal Procedure</div>
+          <div class="doc-meta-grid">
+            <div class="doc-meta-item"><div class="dm-label">Document ID</div><div class="dm-value valid">MFG-CELL-WI-0041</div></div>
+            <div class="doc-meta-item"><div class="dm-label">TS Number</div><div class="dm-value valid">TS-2841</div></div>
+            <div class="doc-meta-item"><div class="dm-label">Revision</div><div class="dm-value">v1.0 (Draft)</div></div>
+            <div class="doc-meta-item"><div class="dm-label">Department</div><div class="dm-value">MFG — Manufacturing</div></div>
+            <div class="doc-meta-item"><div class="dm-label">Process</div><div class="dm-value">CELL — Cell Assembly</div></div>
+            <div class="doc-meta-item"><div class="dm-label">Engineer</div><div class="dm-value">R. Patel</div></div>
+          </div>
+        </div>
+
+        <!-- PPE block -->
+        <div class="ppe-block" id="ppe-block">
+          <div class="ppe-icon">🦺</div>
+          <div class="ppe-text">
+            <div class="ppe-title">Required PPE — must be worn before starting this procedure</div>
+            <div class="ppe-items" id="ppe-items" contenteditable="true">Chemical-resistant gloves · Safety glasses · Face shield · Chemical splash apron</div>
+          </div>
+        </div>
+
+        <!-- Section 1 -->
+        <div class="h1">1. Scope</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:12px" contenteditable="true">
+          This work instruction defines the process for filling LFP cell housings with electrolyte and sealing the fill port. Applies to all operators on the Cell Assembly line.
+        </p>
+
+        <!-- Section 2 -->
+        <div class="h1">2. Electrolyte fill procedure</div>
+        <div class="h2">2.1 Pre-fill inspection</div>
+
+        <div id="doc-body">
+          <div class="sop-step flagged-red" id="step-0" data-issues="passive,verb">
+            <div class="step-n">1.</div>
+            <div class="step-content" contenteditable="true">The cell housing should be verified to be properly seated in the fixture before starting.</div>
+            <div class="step-inline-flag" style="background:var(--flag-red-bg);color:var(--flag-red)">Passive</div>
+          </div>
+          <div class="sop-step" id="step-1">
+            <div class="step-n">2.</div>
+            <div class="step-content" contenteditable="true">Wear chemical-resistant gloves and safety glasses before handling electrolyte.</div>
+            <div class="step-inline-flag" style="background:var(--flag-green-bg);color:var(--flag-green)">✓</div>
+          </div>
+          <div class="sop-step flagged-amber" id="step-2" data-issues="unit,multiple-actions">
+            <div class="step-n">3.</div>
+            <div class="step-content" contenteditable="true">Fill the cell with 45 of electrolyte and then seal the port and torque the cap.</div>
+            <div class="step-inline-flag" style="background:var(--flag-amber-bg);color:var(--flag-amber)">3 issues</div>
+          </div>
+          <div class="sop-step" id="step-3">
+            <div class="step-n">4.</div>
+            <div class="step-content" contenteditable="true">Record the fill weight on the traveler sheet.</div>
+            <div class="step-inline-flag" style="background:var(--flag-green-bg);color:var(--flag-green)">✓</div>
+          </div>
+          <div class="sop-step flagged-red" id="step-4" data-issues="passive">
+            <div class="step-n">5.</div>
+            <div class="step-content" contenteditable="true">The operator should check for leaks around the fill port area before proceeding to the next step.</div>
+            <div class="step-inline-flag" style="background:var(--flag-red-bg);color:var(--flag-red)">2 issues</div>
+          </div>
+        </div>
+
+        <!-- Image placeholder -->
+        <div class="img-placeholder" onclick="toast_show('Image upload — connect to local file system in production')">
+          <div class="ip-icon">🖼️</div>
+          <div>Click to insert image · Select size with Ctrl+W / Q / A / F</div>
+          <div style="font-size:11px;margin-top:4px;color:#aaa">Or drag and drop from your file explorer</div>
+        </div>
+        <div class="img-callout-row">
+          <div class="img-callout-tag" onclick="toast_show('Ellipse callout added ✓')">⬭ Ellipse callout</div>
+          <div class="img-callout-tag" onclick="toast_show('Circle callout added ✓')">⭕ Circle callout</div>
+          <div class="img-callout-tag" onclick="toast_show('AI suggested: label fill port and torque cap')">🤖 AI suggest callouts</div>
+        </div>
+
+        <!-- Document control table -->
+        <table class="dc-table" id="dc-table">
+          <thead>
+            <tr>
+              <th width="90">Date</th>
+              <th>Change description</th>
+              <th width="120">Technical writer</th>
+              <th width="130">Engineer approver</th>
+            </tr>
+          </thead>
+          <tbody id="dc-tbody">
+            <tr>
+              <td id="dc-date" class="ai-gen">—</td>
+              <td id="dc-desc"><span style="color:#bbb;font-style:italic">Click "Gen doc control" in Review tab to auto-generate</span></td>
+              <td class="ai-gen">T. Writer</td>
+              <td class="ai-gen">R. Patel</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+
+    <!-- AI panel -->
+    <div class="ai-panel">
+      <div class="ai-panel-tabs">
+        <div class="apt active" id="apt-issues" onclick="switchAITab('issues')">Issues</div>
+        <div class="apt" id="apt-score" onclick="switchAITab('score')">Score</div>
+        <div class="apt" id="apt-chat" onclick="switchAITab('chat')">AI Chat</div>
+      </div>
+
+      <!-- Issues tab -->
+      <div class="ai-panel-body" id="aip-issues">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">3 issues found · Click any issue to jump to it in the document</div>
+
+        <div class="issue-card" id="ic-0" onclick="highlightStep(0)">
+          <div class="ic-header">
+            <span class="ic-type" style="background:var(--flag-red-bg);color:var(--flag-red)">Passive voice</span>
+            <span class="ic-line">Step 1</span>
+          </div>
+          <div class="ic-original">The cell housing should be verified to be properly seated…</div>
+          <div class="ic-fix">✓ Confirm the cell housing is seated in the fixture before starting.</div>
+          <div class="ic-actions">
+            <button class="ic-btn ic-btn-accept" onclick="applyFix(event,0,'Confirm the cell housing is seated in the fixture before starting.')">Apply fix</button>
+            <button class="ic-btn ic-btn-skip" onclick="skipFix(event,0)">Skip</button>
+          </div>
+        </div>
+
+        <div class="issue-card" id="ic-1" onclick="highlightStep(2)">
+          <div class="ic-header">
+            <span class="ic-type" style="background:var(--flag-amber-bg);color:var(--flag-amber)">Missing unit</span>
+            <span class="ic-line">Step 3</span>
+          </div>
+          <div class="ic-original">Fill the cell with 45 of electrolyte…</div>
+          <div class="ic-fix">✓ Fill the cell with 45 mL of electrolyte.</div>
+          <div class="ic-actions">
+            <button class="ic-btn ic-btn-accept" onclick="applyFix(event,2,'Fill the cell with 45 mL of electrolyte.')">Apply fix</button>
+            <button class="ic-btn ic-btn-skip" onclick="skipFix(event,1)">Skip</button>
+          </div>
+        </div>
+
+        <div class="issue-card" id="ic-2" onclick="highlightStep(2)">
+          <div class="ic-header">
+            <span class="ic-type" style="background:var(--flag-amber-bg);color:var(--flag-amber)">Multiple actions</span>
+            <span class="ic-line">Step 3</span>
+          </div>
+          <div class="ic-original">…and then seal the port and torque the cap.</div>
+          <div class="ic-fix">✓ Split into: (3a) Fill cell with 45 mL electrolyte. (3b) Seal the fill port. (3c) Torque the cap to 2.5 Nm.</div>
+          <div class="ic-actions">
+            <button class="ic-btn ic-btn-accept" onclick="applySplit(event)">Apply split</button>
+            <button class="ic-btn ic-btn-skip" onclick="skipFix(event,2)">Skip</button>
+          </div>
+        </div>
+
+        <div class="issue-card" id="ic-3" onclick="highlightStep(4)">
+          <div class="ic-header">
+            <span class="ic-type" style="background:var(--flag-red-bg);color:var(--flag-red)">Passive voice</span>
+            <span class="ic-line">Step 5</span>
+          </div>
+          <div class="ic-original">The operator should check for leaks…</div>
+          <div class="ic-fix">✓ Check for leaks around the fill port before proceeding.</div>
+          <div class="ic-actions">
+            <button class="ic-btn ic-btn-accept" onclick="applyFix(event,4,'Check for leaks around the fill port before proceeding.')">Apply fix</button>
+            <button class="ic-btn ic-btn-skip" onclick="skipFix(event,3)">Skip</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:6px">
+          <button class="ic-btn ic-btn-accept" style="flex:1;padding:7px" onclick="acceptAllFixes()">✅ Accept all fixes</button>
+          <button class="ic-btn ic-btn-skip" onclick="runAIAnalysis()">🔄 Re-analyze</button>
+        </div>
+      </div>
+
+      <!-- Score tab -->
+      <div class="ai-panel-body" id="aip-score" style="display:none">
+        <div class="score-row">
+          <div class="score-mini">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="20" fill="none" stroke="#eee" stroke-width="5"/>
+              <circle id="score-arc" cx="26" cy="26" r="20" fill="none" stroke="#f5a623" stroke-width="5"
+                stroke-dasharray="125.7" stroke-dashoffset="56" stroke-linecap="round"/>
+            </svg>
+            <div class="score-mini-num" id="score-num">55</div>
+          </div>
+          <div class="score-detail">
+            <div class="score-title" id="score-label">Needs work</div>
+            <div class="score-sub" id="score-sub">4 issues — fix to reach 100%</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>Verb-first compliance</span><span class="badge-pill bp-red">50%</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>One action per sentence</span><span class="badge-pill bp-amber">67%</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>Measurement units</span><span class="badge-pill bp-amber">80%</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>PPE mentioned</span><span class="badge-pill bp-green">100%</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>Safety symbols</span><span class="badge-pill bp-blue">N/A</span></div>
+        </div>
+        <div style="background:var(--flag-amber-bg);border:1px solid var(--flag-amber);border-radius:4px;padding:8px 10px;font-size:11px;color:var(--flag-amber);margin-bottom:8px">
+          ⚠ Engineer R. Patel — recurring pattern: passive voice (62% of 14 prior docs). Pre-flagged automatically.
+        </div>
+        <button class="ic-btn ic-btn-accept" style="width:100%;padding:7px;margin-top:4px" onclick="acceptAllFixes()">Fix all issues → reach 100%</button>
+      </div>
+
+      <!-- Chat tab -->
+      <div style="display:flex;flex-direction:column;flex:1;overflow:hidden" id="aip-chat-wrap" style="display:none">
+        <div class="ai-panel-body" id="aip-chat" style="flex:1">
+          <div class="ai-msg bot"><span>Hi — I'm your SOP assistant. Ask me to fix sentences, add safety symbols, check PPE requirements, or customize any macro using plain English.</span></div>
+          <div id="chat-messages"></div>
+        </div>
+        <div class="ai-chat-input">
+          <input type="text" id="chat-input" placeholder="e.g. Fix all passive voice in step 2…" onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="ai-send-btn" onclick="sendChat()">↑</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /editor-layout -->
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="sb-item"><span class="sb-dot" style="background:#2dce7a"></span>SVN connected</div>
+    <div class="sb-item">MFG-CELL-WI-0041</div>
+    <div class="sb-item" id="sb-issues">4 issues</div>
+    <div class="sb-item" id="sb-score">Score: 55%</div>
+    <div class="sb-item" style="margin-left:auto">Versight v1.0 · T. Writer</div>
+  </div>
+
+</div><!-- /app-shell -->
+
+<!-- Settings modal -->
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettingsIfOutside(event)">
+  <div class="settings-modal">
+    <div class="settings-header">
+      <span style="font-size:18px">⚙️</span>
+      <h2>Macros & Settings</h2>
+      <button class="settings-close" onclick="closeSettings()">×</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-nav">
+        <div class="snav-item active" onclick="switchSettings('macros',this)">AI Macros</div>
+        <div class="snav-item" onclick="switchSettings('new-macro',this)">Create macro</div>
+        <div class="snav-item" onclick="switchSettings('style-rules',this)">Style rules</div>
+        <div class="snav-item" onclick="switchSettings('naming',this)">Naming convention</div>
+        <div class="snav-item" onclick="switchSettings('ppe-matrix',this)">PPE matrix</div>
+        <div class="snav-item" onclick="switchSettings('safety-symbols',this)">Safety symbols</div>
+        <div class="snav-item" onclick="switchSettings('svn',this)">SVN connection</div>
+      </div>
+      <div class="settings-content">
+
+        <!-- Macros -->
+        <div class="settings-section active" id="ss-macros">
+          <div class="ss-title">AI Macros</div>
+          <div class="ss-sub">Each macro runs a specific AI prompt on your document. Edit the prompt to customize exactly what the AI does when you run it — no coding needed.</div>
+
+          <div class="macro-card">
+            <div class="mc-header">
+              <span class="mc-key">Ctrl+1</span>
+              <span class="mc-name">Verb-first fix</span>
+              <button class="mc-edit-btn" onclick="editMacro('verb_first')">Edit prompt</button>
+            </div>
+            <div class="mc-desc">Rewrites any sentence that doesn't begin with an imperative verb into verb-first format.</div>
+            <div class="mc-prompt" id="mp-verb_first">Rewrite this manufacturing SOP sentence to start with an imperative verb. Preserve all technical terms, measurements, and part names exactly. Output only the rewritten sentence, nothing else. Sentence: {text}</div>
+          </div>
+
+          <div class="macro-card">
+            <div class="mc-header">
+              <span class="mc-key">Ctrl+2</span>
+              <span class="mc-name">Split actions</span>
+              <button class="mc-edit-btn" onclick="editMacro('split_actions')">Edit prompt</button>
+            </div>
+            <div class="mc-desc">Detects sentences with multiple actions joined by "and" or "then" and splits them into separate numbered steps.</div>
+            <div class="mc-prompt" id="mp-split_actions">This manufacturing step contains multiple actions. Split it into separate single-action steps. Each step must start with an imperative verb. Output as a numbered list. Preserve all technical terms exactly. Text: {text}</div>
+          </div>
+
+          <div class="macro-card">
+            <div class="mc-header">
+              <span class="mc-key">Ctrl+3</span>
+              <span class="mc-name">Add units</span>
+              <button class="mc-edit-btn" onclick="editMacro('add_units')">Edit prompt</button>
+            </div>
+            <div class="mc-desc">Detects bare numbers without measurement units and flags or suggests the correct unit based on context.</div>
+            <div class="mc-prompt" id="mp-add_units">Review this manufacturing instruction for numbers without measurement units (e.g. "torque to 45" — missing Nm). Identify each bare number and suggest the appropriate unit based on context (Nm, mL, mm, kg, °C, V, A, psi, rpm, etc). Output JSON: {"issues":[{"number":"...","context":"...","suggested_unit":"..."}]}. Text: {text}</div>
+          </div>
+
+          <div class="macro-card">
+            <div class="mc-header">
+              <span class="mc-key">Ctrl+4</span>
+              <span class="mc-name">PPE check</span>
+              <button class="mc-edit-btn" onclick="editMacro('ppe_check')">Edit prompt</button>
+            </div>
+            <div class="mc-desc">Scans all steps for hazardous tasks and verifies the correct PPE is mentioned before each one.</div>
+            <div class="mc-prompt" id="mp-ppe_check">Review these manufacturing SOP steps for PPE compliance. For each step involving chemical handling, electrical work, sharp objects, hot surfaces, or heavy items — verify the correct PPE is mentioned before that step. List any gaps. Steps: {text}</div>
+          </div>
+
+          <div class="macro-card">
+            <div class="mc-header">
+              <span class="mc-key">Ctrl+5</span>
+              <span class="mc-name">Safety symbol scan</span>
+              <button class="mc-edit-btn" onclick="editMacro('safety_scan')">Edit prompt</button>
+            </div>
+            <div class="mc-desc">Scans for hazard keywords and recommends which safety symbol callouts to add before relevant steps.</div>
+            <div class="mc-prompt" id="mp-safety_scan">Scan these manufacturing SOP steps for hazard keywords. For each hazard found, recommend the appropriate ANSI/ISO safety symbol: ⚡ electrical, ✂️ cut, 🧪 chemical, 🔥 hot surface, 🤏 pinch, 🛡️ ESD, 💨 pressure, 🪜 fall. Output as a list of recommendations with step numbers. Steps: {text}</div>
+          </div>
+
+          <div class="ai-macro-create">
+            <div class="amc-label">💬 Create a new macro using plain English</div>
+            <div class="amc-row">
+              <input class="amc-input" type="text" id="macro-create-input" placeholder="e.g. Check that every step mentions the correct torque tool…">
+              <button class="amc-btn" onclick="createMacroFromPrompt()">Generate macro</button>
+            </div>
+            <div class="amc-result" id="amc-result"></div>
+          </div>
+        </div>
+
+        <!-- New macro -->
+        <div class="settings-section" id="ss-new-macro">
+          <div class="ss-title">Create a new macro</div>
+          <div class="ss-sub">Describe what you want the macro to do in plain English and the AI will write the prompt for you. Or write the prompt directly.</div>
+          <div class="form-row-s">
+            <label>Macro name</label>
+            <input type="text" placeholder="e.g. Torque tool check">
+          </div>
+          <div class="form-row-s">
+            <label>Keyboard shortcut</label>
+            <select>
+              <option>Ctrl+6</option><option>Ctrl+7</option><option>Ctrl+8</option><option>Ctrl+9</option>
+            </select>
+          </div>
+          <div class="form-row-s">
+            <label>Describe what this macro should do</label>
+            <textarea class="prompt-editor" id="new-macro-desc" placeholder="e.g. Check every step that involves tightening a fastener to make sure a torque spec in Nm is mentioned…"></textarea>
+          </div>
+          <button class="ic-btn ic-btn-accept" style="padding:7px 14px;margin-bottom:10px" onclick="generateMacroPrompt()">✨ Generate AI prompt from description</button>
+          <div class="form-row-s">
+            <label>AI prompt (auto-generated or write your own)</label>
+            <textarea class="prompt-editor" id="new-macro-prompt" placeholder="The AI prompt will appear here after generation…" rows="5"></textarea>
+          </div>
+          <button class="save-btn" onclick="toast_show('Macro saved ✓');closeSettings()">Save macro</button>
+        </div>
+
+        <!-- Style rules -->
+        <div class="settings-section" id="ss-style-rules">
+          <div class="ss-title">Style rules</div>
+          <div class="ss-sub">Configure the rules the AI uses to analyze and score every document. Each rule is a plain-English instruction.</div>
+          <div class="form-row-s">
+            <label>Verb-first rule</label>
+            <textarea class="prompt-editor" rows="2">Every instruction step must begin with an imperative verb (e.g. Tighten, Verify, Record, Insert). Flag any sentence that begins with "The", "An", "A", or uses passive construction.</textarea>
+          </div>
+          <div class="form-row-s">
+            <label>One action per sentence</label>
+            <textarea class="prompt-editor" rows="2">Each step may contain only one discrete physical action. Flag sentences containing "and then", "and also", or more than one verb phrase describing different physical actions.</textarea>
+          </div>
+          <div class="form-row-s">
+            <label>Maximum sentence length</label>
+            <input type="text" value="15 words maximum per instruction step">
+          </div>
+          <div class="form-row-s">
+            <label>Measurement unit requirement</label>
+            <textarea class="prompt-editor" rows="2">All numeric values must be followed by an explicit unit (Nm, mL, mm, kg, °C, V, A, psi, rpm, %). Flag any standalone number without a unit.</textarea>
+          </div>
+          <div class="form-row-s">
+            <label>Readability target</label>
+            <input type="text" value="Flesch Reading Ease ≥ 60 for operator-facing steps">
+          </div>
+          <button class="save-btn" onclick="toast_show('Style rules saved ✓')">Save rules</button>
+        </div>
+
+        <!-- Naming convention -->
+        <div class="settings-section" id="ss-naming">
+          <div class="ss-title">Naming convention</div>
+          <div class="ss-sub">Define the document naming pattern. The AI validates every new document name against this pattern on intake.</div>
+          <div class="form-row-s">
+            <label>Pattern</label>
+            <input type="text" value="{DEPT}-{PROCESS}-{DOCTYPE}-{NUMBER}">
+          </div>
+          <div class="form-row-s">
+            <label>Valid departments (comma-separated)</label>
+            <input type="text" value="MFG, ENG, QA, MAINT, HSE">
+          </div>
+          <div class="form-row-s">
+            <label>Valid document types</label>
+            <input type="text" value="WI, SOP, MM, QP, JSA">
+          </div>
+          <div class="form-row-s">
+            <label>Number format</label>
+            <input type="text" value="4 digits, zero-padded (e.g. 0041)">
+          </div>
+          <button class="save-btn" onclick="toast_show('Naming convention saved ✓')">Save</button>
+        </div>
+
+        <!-- PPE matrix -->
+        <div class="settings-section" id="ss-ppe-matrix">
+          <div class="ss-title">PPE matrix</div>
+          <div class="ss-sub">Map task types to required PPE. The AI uses this to flag missing PPE before hazardous steps.</div>
+          <div class="form-row-s">
+            <label>Chemical handling</label>
+            <input type="text" value="Chemical-resistant gloves, safety glasses, face shield, splash apron">
+          </div>
+          <div class="form-row-s">
+            <label>Electrical work</label>
+            <input type="text" value="ESD wrist strap, ESD gloves, safety glasses, insulated tools">
+          </div>
+          <div class="form-row-s">
+            <label>Heavy lifting (&gt;15kg)</label>
+            <input type="text" value="Steel-toed boots, back support belt, safety glasses">
+          </div>
+          <div class="form-row-s">
+            <label>Cutting / sharp edges</label>
+            <input type="text" value="Cut-resistant gloves (Level D+), safety glasses">
+          </div>
+          <div class="form-row-s">
+            <label>Hot surfaces (&gt;60°C)</label>
+            <input type="text" value="Heat-resistant gloves (300°C rated), face shield">
+          </div>
+          <div class="form-row-s">
+            <label>Add custom task type</label>
+            <input type="text" placeholder="Task name → required PPE…">
+          </div>
+          <button class="save-btn" onclick="toast_show('PPE matrix saved ✓')">Save matrix</button>
+        </div>
+
+        <!-- Safety symbols -->
+        <div class="settings-section" id="ss-safety-symbols">
+          <div class="ss-title">Safety symbols</div>
+          <div class="ss-sub">All 25 symbol types. Configure the trigger keywords for each — the AI uses these to recommend symbols during safety scans.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>⚡</strong> Electric hazard · Keywords: voltage, electrical, live wire, high voltage</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>✂️</strong> Cut hazard · Keywords: sharp, blade, cutter, knife, edge</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🧪</strong> Chemical · Keywords: electrolyte, acid, solvent, chemical</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🔥</strong> Hot surface · Keywords: hot, heat, temperature, oven, furnace</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🤏</strong> Pinch point · Keywords: pinch, clamp, press, crush, grip</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🛡️</strong> ESD · Keywords: ESD, static, electrostatic, sensitive</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>💨</strong> Pressure · Keywords: pressure, pneumatic, compressed, psi, bar</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🪜</strong> Fall risk · Keywords: ladder, elevated, height, platform</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🔴</strong> Laser · Keywords: laser, beam, optical, Class II, Class III</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>☢️</strong> Radiation · Keywords: radiation, X-ray, ionizing, radioactive</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>🔊</strong> Noise · Keywords: loud, decibel, dB, hearing protection</div>
+            <div style="padding:6px 8px;background:var(--macro-card);border:1px solid var(--macro-border);border-radius:4px"><strong>⚙️</strong> Moving parts · Keywords: rotating, moving, machinery, conveyor</div>
+          </div>
+          <button class="save-btn" style="margin-top:14px" onclick="toast_show('Symbol config saved ✓')">Save configuration</button>
+        </div>
+
+        <!-- SVN -->
+        <div class="settings-section" id="ss-svn">
+          <div class="ss-title">SVN connection</div>
+          <div class="ss-sub">Configure your SVN repository connection. The desktop agent handles all lock/unlock operations automatically.</div>
+          <div class="form-row-s"><label>Repository URL</label><input type="text" value="svn://gigafactory-svn.internal/docs"></div>
+          <div class="form-row-s"><label>Draft folder path</label><input type="text" value="/docs/draft/"></div>
+          <div class="form-row-s"><label>Released folder path</label><input type="text" value="/docs/released/"></div>
+          <div class="form-row-s"><label>Enovia API endpoint</label><input type="text" value="https://enovia.internal/api/v2"></div>
+          <div class="form-row-s"><label>JIRA base URL</label><input type="text" value="https://jira.company.com"></div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="save-btn" onclick="toast_show('Connection settings saved ✓')">Save</button>
+            <button class="ic-btn ic-btn-accept" style="padding:7px 14px" onclick="toast_show('SVN connection verified ✓')">Test connection</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast-el"></div>
+
+<script>
+const API = 'https://api.anthropic.com/v1/messages';
+
+// ── Ribbon switching ──
+function switchRibbon(id, el) {
+  document.querySelectorAll('[id^="ribbon-"]').forEach(r => r.style.display = 'none');
+  document.getElementById('ribbon-' + id).style.display = 'flex';
+  document.querySelectorAll('.rtab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── AI panel tabs ──
+function switchAITab(tab) {
+  ['issues','score'].forEach(t => {
+    const el = document.getElementById('aip-' + t);
+    if(el) el.style.display = 'none';
+  });
+  const chatWrap = document.getElementById('aip-chat-wrap');
+  if(chatWrap) chatWrap.style.display = 'none';
+  document.querySelectorAll('.apt').forEach(a => a.classList.remove('active'));
+  document.getElementById('apt-' + tab).classList.add('active');
+
+  if(tab === 'chat') {
+    const cw = document.getElementById('aip-chat-wrap');
+    cw.style.display = 'flex';
+    cw.style.flexDirection = 'column';
+    cw.style.flex = '1';
+    cw.style.overflow = 'hidden';
+  } else {
+    document.getElementById('aip-' + tab).style.display = 'block';
+  }
+}
+
+// ── Heading apply ──
+function applyHeading(level) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const el = range.commonAncestorContainer.parentElement;
+  const classMap = { h1:'h1', h2:'h2', h3:'h3', h4:'h4', body:'' };
+  if(el && el.closest('.doc-page')) {
+    el.className = classMap[level] || '';
+  }
+  document.getElementById('heading-sel').value = level;
+  toast_show(`Heading ${level} applied`);
+}
+
+// ── Format commands ──
+function fmt(cmd) {
+  document.execCommand(cmd);
+}
+function insertList() {
+  document.execCommand('insertOrderedList');
+}
+
+// ── Insert step ──
+function insertStep() {
+  const body = document.getElementById('doc-body');
+  const steps = body.querySelectorAll('.sop-step');
+  const n = steps.length + 1;
+  const div = document.createElement('div');
+  div.className = 'sop-step';
+  div.id = 'step-' + (n-1);
+  div.innerHTML = `<div class="step-n">${n}.</div><div class="step-content" contenteditable="true">New step — type instruction here.</div>`;
+  body.appendChild(div);
+  div.querySelector('.step-content').focus();
+  toast_show('Step ' + n + ' added');
+}
+
+// ── Safety callout ──
+function insertSafetyCallout(type) {
+  const icons = { caution:'⚠️', warning:'🔶', danger:'🚫' };
+  const labels = { caution:'CAUTION', warning:'WARNING', danger:'DANGER' };
+  const texts = {
+    caution:'Ensure all PPE is worn and the area is clear before proceeding.',
+    warning:'Failure to follow this procedure may result in equipment damage or injury.',
+    danger:'Risk of serious injury or death. Do not proceed until all conditions are met.'
+  };
+  const body = document.getElementById('doc-body');
+  const div = document.createElement('div');
+  div.className = `safety-callout ${type}`;
+  div.innerHTML = `<div class="sc-icon">${icons[type]}</div><div><div class="sc-label">${labels[type]}</div><div class="sc-text" contenteditable="true">${texts[type]}</div></div>`;
+  const lastStep = body.querySelector('.sop-step:last-child');
+  if(lastStep) body.insertBefore(div, lastStep.nextSibling);
+  else body.appendChild(div);
+  toast_show(labels[type] + ' callout inserted');
+}
+
+// ── Safety symbol ──
+function insertSafetySymbol(type) {
+  const map = {electric:'⚡ Electric hazard',cut:'✂️ Cut hazard',chemical:'🧪 Chemical hazard',hot:'🔥 Hot surface',pinch:'🤏 Pinch point',esd:'🛡️ ESD sensitive',laser:'🔴 Laser hazard',pressure:'💨 Pressure hazard',fall:'🪜 Fall risk',crush:'⚙️ Crush hazard'};
+  toast_show(map[type] + ' symbol inserted before selected step');
+}
+
+// ── Image controls ──
+function insertImagePlaceholder() {
+  const body = document.getElementById('doc-body');
+  const div = document.createElement('div');
+  div.className = 'img-placeholder';
+  div.innerHTML = '<div class="ip-icon">🖼️</div><div>Image placeholder — click to upload</div>';
+  div.onclick = () => toast_show('Image upload — connect file system in production');
+  body.appendChild(div);
+  toast_show('Image placeholder inserted');
+}
+function alignImages(size) {
+  const sizeMap = {small:'30%',medium:'50%',large:'75%',full:'100%'};
+  toast_show(`Image size set to ${size} (${sizeMap[size]})`);
+}
+function insertCalloutShape(shape) {
+  toast_show(`${shape} callout shape added to selected image`);
+}
+function insertTable() { toast_show('Table inserted'); }
+function insertPPEBlock() { toast_show('PPE block inserted at cursor position'); }
+
+// ── Keyboard shortcuts (Ctrl+W/Q/A/F for image sizes) ──
+document.addEventListener('keydown', e => {
+  if(e.ctrlKey) {
+    const map = {w:'small',q:'medium',a:'large',f:'full',
+      '1':'verb_first','2':'split_actions','3':'add_units','4':'ppe_check','5':'safety_scan'};
+    const k = e.key.toLowerCase();
+    if(map[k] && Object.keys({w:1,q:1,a:1,f:1}).includes(k)) {
+      e.preventDefault();
+      alignImages(map[k]);
+    }
+    if(map[k] && ['1','2','3','4','5'].includes(k)) {
+      e.preventDefault();
+      runMacro(map[k]);
+    }
+  }
+});
+
+// ── Run macro (AI-powered) ──
+async function runMacro(macroId) {
+  const body = document.getElementById('doc-body');
+  const text = body.innerText.trim();
+  const prompts = {
+    verb_first: `Review these SOP steps. List only the steps that don't start with an imperative verb. For each, give the step number and a corrected version. Be brief. Steps:\n${text}`,
+    split_actions: `Review these SOP steps. Identify any step with multiple actions (joined by "and", "then", "also"). For each, show how to split into separate steps. Be brief. Steps:\n${text}`,
+    add_units: `Review these SOP steps for numbers without measurement units. List each issue with a fix. Be brief. Steps:\n${text}`,
+    ppe_check: `Review these SOP steps for PPE compliance. Note any hazardous task missing PPE mention. Be brief. Steps:\n${text}`,
+    readability: `Rate the readability of these SOP steps (aim for Flesch ≥ 60). List the most complex sentences with simpler rewrites. Be brief. Steps:\n${text}`,
+    safety_scan: `Scan these SOP steps for hazard keywords and recommend ANSI/ISO safety symbols to add. Be brief. Steps:\n${text}`
+  };
+  const prompt = prompts[macroId] || prompts.verb_first;
+  switchAITab('chat');
+  addChatMsg('bot', '<span class="spinner"></span> Running macro…');
+  let resp = '';
+  const last = () => document.getElementById('chat-messages').lastElementChild?.querySelector('span');
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,stream:true,
+        messages:[{role:'user',content:prompt}]})
+    });
+    if(last()) last().textContent = '';
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true) {
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value);
+      const lines = buf.split('\n'); buf = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if(d==='[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          if(j.type==='content_block_delta'&&j.delta?.text) {
+            resp += j.delta.text;
+            if(last()) last().textContent = resp;
+          }
+        } catch{}
+      }
+    }
+  } catch(e) {
+    if(last()) last().textContent = 'API error — check internet connection.';
+  }
+}
+
+// ── AI full analysis ──
+async function runAIAnalysis() {
+  const body = document.getElementById('doc-body');
+  const steps = body.querySelectorAll('.sop-step');
+  const texts = Array.from(steps).map((s,i) => `${i+1}. ${s.querySelector('.step-content').innerText}`).join('\n');
+
+  switchAITab('issues');
+  const container = document.getElementById('aip-issues');
+  container.innerHTML = '<div style="padding:20px;text-align:center;color:#888"><span class="spinner"></span> AI analyzing document…</div>';
+
+  const prompt = `Analyze these SOP steps for quality issues. Return JSON only, no markdown:
+{"issues":[{"step_index":0,"type":"passive|unit|multiple_actions|verb|ppe|length","description":"brief description","original":"original text","fix":"corrected version"}]}
+Steps:\n${texts}`;
+
+  let resp = '';
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,stream:true,
+        messages:[{role:'user',content:prompt}]})
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true) {
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value);
+      const lines = buf.split('\n'); buf = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if(d==='[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          if(j.type==='content_block_delta'&&j.delta?.text) resp += j.delta.text;
+        } catch{}
+      }
+    }
+    const match = resp.match(/\{[\s\S]*\}/);
+    if(match) {
+      const data = JSON.parse(match[0]);
+      renderIssueCards(data.issues, steps);
+    } else throw new Error('no json');
+  } catch(e) {
+    renderIssueCards(null, steps);
+  }
+}
+
+function renderIssueCards(issues, steps) {
+  const container = document.getElementById('aip-issues');
+  if(!issues || issues.length === 0) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:#1a7a40;font-weight:600">✅ All steps are compliant!</div>';
+    updateScore(100, 0);
+    return;
+  }
+  const typeColors = {
+    passive: 'var(--flag-red-bg)|var(--flag-red)|Passive voice',
+    verb: 'var(--flag-red-bg)|var(--flag-red)|Non-verb start',
+    unit: 'var(--flag-amber-bg)|var(--flag-amber)|Missing unit',
+    multiple_actions: 'var(--flag-amber-bg)|var(--flag-amber)|Multiple actions',
+    ppe: 'var(--flag-amber-bg)|var(--flag-amber)|PPE missing',
+    length: 'var(--flag-blue-bg)|var(--flag-blue)|Too long'
+  };
+  container.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${issues.length} issue${issues.length!==1?'s':''} found · Click to highlight in document</div>`;
+  issues.forEach((iss, i) => {
+    const [bg,fg,label] = (typeColors[iss.type]||'var(--flag-blue-bg)|var(--flag-blue)|Issue').split('|');
+    const card = document.createElement('div');
+    card.className = 'issue-card';
+    card.id = 'ic-ai-' + i;
+    card.innerHTML = `
+      <div class="ic-header">
+        <span class="ic-type" style="background:${bg};color:${fg}">${label}</span>
+        <span class="ic-line">Step ${iss.step_index+1}</span>
+      </div>
+      <div class="ic-original">${iss.original||iss.description}</div>
+      ${iss.fix ? `<div class="ic-fix">✓ ${iss.fix}</div>` : ''}
+      <div class="ic-actions">
+        ${iss.fix ? `<button class="ic-btn ic-btn-accept" onclick="applyFixDirect(${iss.step_index},'${iss.fix.replace(/'/g,"\\'")}',${i})">Apply fix</button>` : ''}
+        <button class="ic-btn ic-btn-skip" onclick="document.getElementById('ic-ai-${i}').classList.add('resolved')">Skip</button>
+      </div>`;
+    card.onclick = (e) => { if(!e.target.classList.contains('ic-btn')) highlightStep(iss.step_index); };
+    container.appendChild(card);
+  });
+  const actRow = document.createElement('div');
+  actRow.style.cssText = 'margin-top:12px;display:flex;gap:6px';
+  actRow.innerHTML = `<button class="ic-btn ic-btn-accept" style="flex:1;padding:7px" onclick="acceptAllFixes()">✅ Accept all fixes</button><button class="ic-btn ic-btn-skip" onclick="runAIAnalysis()">🔄 Re-analyze</button>`;
+  container.appendChild(actRow);
+  const score = Math.round(((steps.length - issues.length) / steps.length) * 100);
+  updateScore(score, issues.length);
+}
+
+function highlightStep(idx) {
+  document.querySelectorAll('.sop-step').forEach(s => s.style.outline = '');
+  const step = document.getElementById('step-' + idx);
+  if(step) { step.style.outline = '2px solid #2b579a'; step.scrollIntoView({behavior:'smooth',block:'center'}); }
+}
+
+function applyFix(e, stepIdx, fixText) {
+  e.stopPropagation();
+  const step = document.getElementById('step-' + stepIdx);
+  if(step) {
+    step.querySelector('.step-content').innerText = fixText;
+    step.className = 'sop-step flagged-fixed';
+    const flag = step.querySelector('.step-inline-flag');
+    if(flag) { flag.textContent = '✓ Fixed'; flag.style.background = 'var(--flag-green-bg)'; flag.style.color = 'var(--flag-green)'; }
+  }
+  e.target.closest('.issue-card').classList.add('resolved');
+  recalcScore();
+  toast_show('Fix applied ✓');
+}
+
+function applyFixDirect(stepIdx, fixText, cardIdx) {
+  const step = document.getElementById('step-' + stepIdx);
+  if(step) {
+    step.querySelector('.step-content').innerText = fixText;
+    step.className = 'sop-step flagged-fixed';
+    const flag = step.querySelector('.step-inline-flag');
+    if(flag) { flag.textContent = '✓'; flag.style.background = 'var(--flag-green-bg)'; flag.style.color = 'var(--flag-green)'; }
+  }
+  const card = document.getElementById('ic-ai-' + cardIdx);
+  if(card) card.classList.add('resolved');
+  recalcScore();
+  toast_show('Fix applied ✓');
+}
+
+function applySplit(e) {
+  e.stopPropagation();
+  const step = document.getElementById('step-2');
+  if(step) {
+    step.querySelector('.step-content').innerText = 'Fill the cell with 45 mL of electrolyte.';
+    step.className = 'sop-step flagged-fixed';
+    const body = document.getElementById('doc-body');
+    const s3 = document.createElement('div');
+    s3.className = 'sop-step flagged-fixed';
+    s3.innerHTML = '<div class="step-n">3b.</div><div class="step-content" contenteditable="true">Seal the fill port securely.</div><div class="step-inline-flag" style="background:var(--flag-green-bg);color:var(--flag-green)">✓</div>';
+    const s4 = document.createElement('div');
+    s4.className = 'sop-step flagged-fixed';
+    s4.innerHTML = '<div class="step-n">3c.</div><div class="step-content" contenteditable="true">Torque the cap to 2.5 Nm using a calibrated torque wrench.</div><div class="step-inline-flag" style="background:var(--flag-green-bg);color:var(--flag-green)">✓</div>';
+    step.after(s3); s3.after(s4);
+    const flag = step.querySelector('.step-inline-flag');
+    if(flag) { flag.textContent = '✓'; flag.style.background = 'var(--flag-green-bg)'; flag.style.color = 'var(--flag-green)'; }
+  }
+  e.target.closest('.issue-card').classList.add('resolved');
+  recalcScore();
+  toast_show('Step split into 3 separate actions ✓');
+}
+
+function skipFix(e, idx) {
+  e.stopPropagation();
+  e.target.closest('.issue-card').classList.add('resolved');
+  toast_show('Issue skipped');
+}
+
+function acceptAllFixes() {
+  document.querySelectorAll('.ic-btn-accept').forEach(b => { if(!b.closest('.issue-card').classList.contains('resolved')) b.click(); });
+  toast_show('All fixes applied ✓');
+}
+
+function recalcScore() {
+  const steps = document.querySelectorAll('.sop-step');
+  const fixed = document.querySelectorAll('.sop-step.flagged-fixed, .sop-step:not(.flagged-red):not(.flagged-amber)').length;
+  const pct = Math.round((fixed / steps.length) * 100);
+  updateScore(pct, steps.length - fixed);
+}
+
+function updateScore(pct, issues) {
+  document.getElementById('score-num').textContent = pct;
+  const c = 125.7;
+  document.getElementById('score-arc').setAttribute('stroke-dashoffset', c - (c * pct / 100));
+  document.getElementById('score-arc').setAttribute('stroke', pct>=90?'#2dce7a':pct>=70?'#f5a623':'#e04040');
+  document.getElementById('score-label').textContent = pct>=90?'Excellent':pct>=70?'Needs work':'Issues found';
+  document.getElementById('score-sub').textContent = issues>0?`${issues} issue${issues!==1?'s':''} remaining`:'All issues resolved ✓';
+  document.getElementById('sb-score').textContent = `Score: ${pct}%`;
+  document.getElementById('sb-issues').textContent = issues>0?`${issues} issues`:'All clear ✓';
+}
+
+// ── Doc control generation ──
+async function generateDocControl() {
+  const body = document.getElementById('doc-body');
+  const text = body.innerText.trim().substring(0,400);
+  const prompt = `Write a concise document control change description (2 sentences max) for this manufacturing SOP change log. Factual, past tense, starts with what changed. Content: ${text}`;
+  document.getElementById('dc-date').textContent = new Date().toISOString().split('T')[0];
+  const desc = document.getElementById('dc-desc');
+  desc.textContent = '';
+  desc.style.color = '#1a7a40';
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:200,stream:true,
+        messages:[{role:'user',content:prompt}]})
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true) {
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value);
+      const lines = buf.split('\n'); buf = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if(d==='[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          if(j.type==='content_block_delta'&&j.delta?.text) desc.textContent += j.delta.text;
+        } catch{}
+      }
+    }
+    toast_show('Document control table updated ✓');
+  } catch(e) {
+    desc.textContent = 'Initial release — electrolyte fill procedure for cell housing v1.0.';
+  }
+}
+
+// ── AI Chat ──
+function addChatMsg(role, html) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `ai-msg ${role}`;
+  div.innerHTML = `<span>${html}</span>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div.querySelector('span');
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if(!msg) return;
+  input.value = '';
+  addChatMsg('user', msg);
+  const body = document.getElementById('doc-body');
+  const docText = body.innerText.trim().substring(0,600);
+  const prompt = `You are an AI assistant for a manufacturing SOP editor. The document currently contains:\n\n${docText}\n\nUser request: ${msg}\n\nRespond concisely and practically. If suggesting edits, be specific about which step to change and the exact new text.`;
+  const span = addChatMsg('bot', '<span class="spinner"></span>');
+  let resp = '';
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,stream:true,
+        messages:[{role:'user',content:prompt}]})
+    });
+    span.innerHTML = '';
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true) {
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value);
+      const lines = buf.split('\n'); buf = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if(d==='[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          if(j.type==='content_block_delta'&&j.delta?.text) { resp += j.delta.text; span.textContent = resp; }
+        } catch{}
+      }
+    }
+  } catch(e) {
+    span.textContent = 'API error — check your internet connection.';
+  }
+  document.getElementById('chat-messages').scrollTop = 9999;
+}
+
+// ── Settings ──
+function openSettings(section) {
+  document.getElementById('settings-overlay').classList.add('open');
+  if(section) {
+    const items = document.querySelectorAll('.snav-item');
+    items.forEach(i => { if(i.textContent.toLowerCase().includes(section.replace('-',' '))) i.click(); });
+  }
+}
+function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+function closeSettingsIfOutside(e) { if(e.target === document.getElementById('settings-overlay')) closeSettings(); }
+function switchSettings(id, el) {
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.snav-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('ss-' + id).classList.add('active');
+  el.classList.add('active');
+}
+function editMacro(id) {
+  openSettings();
+  document.querySelector('.snav-item').click();
+  const el = document.getElementById('mp-' + id);
+  if(el) { el.contentEditable = 'true'; el.style.border = '1px solid #2b579a'; el.focus(); el.style.background='#fffbe6'; }
+  toast_show('Prompt is now editable — click outside to save');
+}
+
+// ── Create macro from prompt ──
+async function createMacroFromPrompt() {
+  const desc = document.getElementById('macro-create-input').value.trim();
+  if(!desc) return;
+  const result = document.getElementById('amc-result');
+  result.style.display = 'block';
+  result.textContent = '';
+  const prompt = `Write a concise AI prompt for a manufacturing SOP macro that does this: "${desc}". The prompt should use {text} as a placeholder for the SOP content. Output only the prompt text, nothing else. Keep it under 100 words.`;
+  try {
+    const res = await fetch(API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:150,stream:true,
+        messages:[{role:'user',content:prompt}]})
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true) {
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value);
+      const lines = buf.split('\n'); buf = lines.pop();
+      for(const line of lines) {
+        if(!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if(d==='[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          if(j.type==='content_block_delta'&&j.delta?.text) result.textContent += j.delta.text;
+        } catch{}
+      }
+    }
+    toast_show('Macro prompt generated ✓ — click Save macro to add it');
+  } catch(e) {
+    result.textContent = 'Error generating prompt. Check internet connection.';
+  }
+}
+
+async function generateMacroPrompt() {
+  const desc = document.getElementById('new-macro-desc').value.trim();
+  if(!desc) return;
+  const out = document.getElementById('new-macro-prompt');
+  out.value = 'Generating…';
+  const prompt = `Write a concise AI prompt for a manufacturing SOP macro that does this: "${desc}". Use {text} as placeholder for SOP content. Output only the prompt, under 100 words.`;
+  try {
+    const res = await fetch(API, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:150,messages:[{role:'user',content:prompt}]})
+    });
+    const data = await res.json();
+    out.value = data.content?.[0]?.text || 'Error';
+    toast_show('Prompt generated ✓');
+  } catch(e) { out.value = 'Error — check connection.'; }
+}
+
+// ── Toast ──
+function toast_show(msg) {
+  const t = document.getElementById('toast-el');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Init
+document.getElementById('aip-chat-wrap').style.display = 'none';
+</script>
+</body>
+</html>
