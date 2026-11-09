@@ -1,0 +1,6 @@
+{
+  "name": "versight-e2e",
+  "private": true,
+  "description": "Browser-level test: loads the real page from a running server inside jsdom.",
+  "dependencies": { "jsdom": "^31.0.0" }
+}
