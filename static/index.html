@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Versight Editor</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">Versight <span>Editor</span></div>
+  <input id="docTitle" class="title-in" aria-label="Document title" maxlength="120">
+  <div class="top-actions">
+    <button class="btn" id="btnOpen" type="button" title="Open a .docx, .html, .md or .txt file in the editor">Open</button>
+    <input type="file" id="openIn" accept=".docx,.html,.htm,.md,.markdown,.txt" hidden>
+    <button class="btn" id="btnNew" type="button">New</button>
+    <div class="menu-wrap">
+      <button class="btn primary" id="btnExport" type="button" aria-haspopup="true" aria-expanded="false">Export</button>
+      <div class="menu" id="exportMenu" hidden>
+        <button type="button" id="expDocx">Word document (.docx)</button>
+        <button type="button" id="expHtml">Web page (.html)</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="ribbon" id="ribbon" role="toolbar" aria-label="Formatting">
+  <div class="rg">
+    <button class="rb" type="button" data-cmd="undo" data-ico="undo" title="Undo" aria-label="Undo"></button>
+    <button class="rb" type="button" data-cmd="redo" data-ico="redo" title="Redo" aria-label="Redo"></button>
+  </div>
+  <div class="rg">
+    <select id="selStyle" aria-label="Paragraph style">
+      <option value="p">Normal</option>
+      <option value="h1">Heading 1</option>
+      <option value="h2">Heading 2</option>
+      <option value="h3">Heading 3</option>
+      <option value="blockquote">Quote</option>
+    </select>
+    <select id="selFont" aria-label="Font">
+      <option>Arial</option><option>Calibri</option><option>Verdana</option><option>Georgia</option><option>Times New Roman</option><option>Courier New</option>
+    </select>
+    <select id="selSize" aria-label="Font size (pt)">
+      <option>9</option><option>10</option><option selected>11</option><option>12</option><option>14</option><option>16</option><option>18</option><option>20</option><option>24</option>
+    </select>
+  </div>
+  <div class="rg">
+    <button class="rb" type="button" data-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
+    <button class="rb" type="button" data-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic"><i>I</i></button>
+    <button class="rb" type="button" data-cmd="underline" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button>
+    <button class="rb" type="button" data-cmd="strikeThrough" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+  </div>
+  <div class="rg">
+    <button class="rb" type="button" data-cmd="insertUnorderedList" data-ico="ul" title="Bulleted list" aria-label="Bulleted list"></button>
+    <button class="rb mono" type="button" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list">1.</button>
+    <button class="rb" type="button" data-cmd="outdent" data-ico="outdent" title="Decrease indent" aria-label="Decrease indent"></button>
+    <button class="rb" type="button" data-cmd="indent" data-ico="indent" title="Increase indent" aria-label="Increase indent"></button>
+  </div>
+  <div class="rg">
+    <button class="rb" type="button" data-cmd="justifyLeft" data-ico="left" title="Align left" aria-label="Align left"></button>
+    <button class="rb" type="button" data-cmd="justifyCenter" data-ico="center" title="Center" aria-label="Center"></button>
+    <button class="rb" type="button" data-cmd="justifyRight" data-ico="right" title="Align right" aria-label="Align right"></button>
+    <button class="rb" type="button" data-cmd="justifyFull" data-ico="justify" title="Justify" aria-label="Justify"></button>
+  </div>
+  <div class="rg">
+    <button class="rb" type="button" id="btnTable" data-ico="table" title="Insert table" aria-label="Insert table"></button>
+    <button class="rb txt" type="button" id="btnRow" title="Add row below" disabled>+ Row</button>
+    <button class="rb txt" type="button" id="btnCol" title="Add column right" disabled>+ Column</button>
+    <button class="rb txt" type="button" id="btnDelTable" title="Delete table" disabled>Delete table</button>
+    <button class="rb" type="button" data-cmd="insertHorizontalRule" data-ico="hr" title="Horizontal line" aria-label="Horizontal line"></button>
+  </div>
+</div>
+
+<div class="mnav" role="group" aria-label="View">
+  <button type="button" id="mvDoc" aria-pressed="true">Document</button>
+  <button type="button" id="mvAI" aria-pressed="false">Assistant</button>
+</div>
+
+<main class="work" id="work" data-view="doc">
+  <section class="canvas" id="canvas" aria-label="Document">
+    <div class="page"><div id="editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Document body"></div></div>
+  </section>
+
+  <aside class="panel" id="panel" aria-label="Assistant panel">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tabAI" aria-selected="true" aria-controls="paneAI" type="button">Assistant</button>
+      <button class="tab" role="tab" id="tabSug" aria-selected="false" aria-controls="paneSug" type="button">Suggestions <span class="badge" id="sugBadge" hidden>0</span></button>
+      <button class="tab" role="tab" id="tabGuide" aria-selected="false" aria-controls="paneGuide" type="button">Style guide</button>
+    </div>
+
+    <div class="pane on" id="paneAI" role="tabpanel" aria-labelledby="tabAI">
+      <div class="notice" id="aiNote" hidden></div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <div class="chips" id="chips">
+        <button class="chip" type="button" data-q="check">Check against style guide</button>
+        <button class="chip" type="button" data-q="steps">Fix procedure steps</button>
+        <button class="chip" type="button" data-q="tighten">Tighten wording</button>
+        <button class="chip" type="button" data-q="source">Update from source material</button>
+      </div>
+      <div class="composer">
+        <details class="src" id="srcBox">
+          <summary>Source material (ECO, ticket, notes)</summary>
+          <textarea id="srcText" placeholder="Paste the change notice, ticket text or engineer notes here. Suggestions based on it say which part they came from." maxlength="20000"></textarea>
+        </details>
+        <div class="scope" id="scopeRow"><span>Scope: <b id="scopeLbl">whole document</b></span><button class="x" id="scopeClear" type="button" title="Use the whole document" aria-label="Use the whole document" hidden>×</button></div>
+        <div class="askrow">
+          <textarea id="ask" rows="2" maxlength="6000" placeholder="Ask for a change, or ask a question about the document" aria-label="Message to the assistant"></textarea>
+          <button class="btn primary" id="btnSend" type="button">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="paneSug" role="tabpanel" aria-labelledby="tabSug">
+      <div class="sg-bar" id="sgBar" hidden>
+        <span class="cnt" id="sgCount"></span>
+        <button class="btn sm" id="accAll" type="button">Accept all</button>
+        <button class="btn sm" id="rejAll" type="button">Reject all</button>
+      </div>
+      <div class="sug-list" id="sugList" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <div class="pane" id="paneGuide" role="tabpanel" aria-labelledby="tabGuide">
+      <section>
+        <h3 class="sec-h">Teach it your style</h3>
+        <div class="drop" id="drop">
+          <p>Add 10 or more of your own documents (up to 20). It reads their structure and wording, then writes down the rules it finds.</p>
+          <input type="file" id="fileIn" accept=".docx,.html,.htm,.md,.markdown,.txt" multiple hidden>
+          <button class="btn" id="btnPick" type="button">Choose files</button>
+          <p style="margin:8px 0 0;font-size:12px">or drop .docx, .html, .md or .txt files here</p>
+        </div>
+        <div class="files" id="files"></div>
+        <div class="muted" id="upNote" style="margin-top:8px;font-size:12px"></div>
+        <div class="row-actions">
+          <button class="btn primary" id="btnLearn" type="button" disabled>Learn style guide</button>
+          <span class="muted" id="learnHint" style="font-size:12px"></span>
+        </div>
+      </section>
+      <section id="secHeads" hidden>
+        <h3 class="sec-h">Headings your documents share</h3>
+        <div class="pills" id="heads"></div>
+      </section>
+      <section id="secVoice" hidden>
+        <h3 class="sec-h">Voice</h3>
+        <div class="card" id="voice"></div>
+      </section>
+      <section>
+        <h3 class="sec-h">Template check</h3>
+        <div class="tpl" id="tpl"></div>
+        <div class="row-actions"><button class="btn sm" id="btnMissing" type="button">Insert missing sections</button></div>
+      </section>
+      <section>
+        <h3 class="sec-h">Rules</h3>
+        <div class="muted" id="rulesNote" style="font-size:12px;margin-bottom:8px"></div>
+        <div class="rules" id="rules"></div>
+        <div class="addrule" style="margin-top:10px">
+          <input id="newRule" type="text" placeholder="Add your own rule" aria-label="New rule" maxlength="300">
+          <button class="btn" id="btnAddRule" type="button">Add</button>
+        </div>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<footer class="status" aria-live="off">
+  <span id="stWords">0 words</span>
+  <span id="stBlocks">0 blocks</span>
+  <span id="stPending"></span>
+  <span id="stAI"></span>
+  <span class="sp" id="stSave"></span>
+</footer>
+<div class="toast" id="toast" role="status" hidden></div>
+
+
+<script src="vendor/mammoth.browser.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
